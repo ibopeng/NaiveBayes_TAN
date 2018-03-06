@@ -48,6 +48,12 @@ def pr_var_range(instance_set, var_range, var_idx):
 
 
 def split_instance_on_label(instance_data, label_range):
+    """
+    Split original dataset based on different class labels
+    :param instance_data:
+    :param label_range:
+    :return:
+    """
 
     instance_split = []
     for lb in label_range:
@@ -90,7 +96,7 @@ def cnd_pr_all_lb(instance_data, var_ranges, label_range):
 
     return _cnd_pr_
 
-def instance_predict(instance_test, cnd_pr_all_lb, pr_lb, var_ranges, label_range):
+def instance_predict_nb(instance_test, cnd_pr_all_lb, pr_lb, var_ranges, label_range):
     """
     Predict the class of the test instance
     :param test_instance: single test instance
@@ -148,7 +154,7 @@ def testset_predict(instance_data_trn, instance_data_test, var_ranges, label_ran
     testset_max_post_pr = []
 
     for ins_test in instance_data_test:
-        ins_test_predict, ins_test_max_postPr = instance_predict(ins_test, _cnd_pr_, _pr_lb_, var_ranges, label_range)
+        ins_test_predict, ins_test_max_postPr = instance_predict_nb(ins_test, _cnd_pr_, _pr_lb_, var_ranges, label_range)
         testset_pred.append(ins_test_predict)
         testset_max_post_pr.append(ins_test_max_postPr)
 
@@ -205,6 +211,15 @@ def range_three_vars(vidx1, vidx2, vidx3, var_ranges):
 
 
 def joint_pr_three_var(vidx0, vidx1, vidx2, instance_set, joint_range):
+    """
+    Joint probability of 3 variables
+    :param vidx0:
+    :param vidx1:
+    :param vidx2:
+    :param instance_set:
+    :param joint_range:
+    :return:
+    """
 
     num_instance = len(instance_set)  # number of instances
     num_jnt_var = len(joint_range)  # number of possible value for this joint range
@@ -221,6 +236,14 @@ def joint_pr_three_var(vidx0, vidx1, vidx2, instance_set, joint_range):
 
 
 def joint_pr_two_var(vidx0, vidx1, instance_set, joint_range):
+    """
+    Joint probability of two variables
+    :param vidx0:
+    :param vidx1:
+    :param instance_set:
+    :param joint_range:
+    :return:
+    """
 
     num_instance = len(instance_set)  # number of instances
     num_jnt_var = len(joint_range)  # number of possible value for this joint range
@@ -237,6 +260,14 @@ def joint_pr_two_var(vidx0, vidx1, instance_set, joint_range):
 
 
 def mutual_info(pr_xi_xj_y, pr_xi_given_y, pr_xj_given_y, pr_xi_xj_given_y):
+    """
+    Compute mutual information between two nodes/variables
+    :param pr_xi_xj_y:
+    :param pr_xi_given_y:
+    :param pr_xj_given_y:
+    :param pr_xi_xj_given_y:
+    :return:
+    """
 
     _mut_info_ = pr_xi_xj_y * np.log2(pr_xi_xj_given_y / (pr_xi_given_y * pr_xj_given_y))
 
@@ -307,7 +338,9 @@ def edge_weight_graph(instance_set, var_ranges, label_range):
 
     for i in range(len(var_ranges)-1):
         _edge_weight_i_ = []
-        for j in range(len(var_ranges)-1):
+        for j in range(0, i):
+            _edge_weight_i_.append(edge_weight_graph[j][i])  # the edge weight graph is symmetric [i,j] = [j,i]
+        for j in range(i, len(var_ranges)-1):
             _edge_weight_i_.append(edge_weight(instance_set, instance_set_split, _cnd_pr_, i, j, var_ranges, label_range))
         edge_weight_graph.append(np.array(_edge_weight_i_))
 
@@ -379,3 +412,127 @@ def prim_mst(edge_weight_graph):
                 edge_weight_graph[var_idx1][var_idx2] = -1.0
 
     return V_new
+
+def cnd_pr_root(var_ranges, label_range, instance_set_split):
+    """
+    Compute the conditional probability of root given each label
+    :param var_ranges:
+    :param label_range:
+    :param instance_set_split:
+    :return:
+    """
+
+    root_val = var_ranges[0]  # the range of the root node: 1st variable
+    # for each label/class, compute the conditional root probability
+    _cpr_lb_ = []  # conditional probability of root for each class/label
+    for i in range(len(label_range)):
+        _cpr_ = []  # conditional probability of each root value
+        for rv in root_val:
+            num_rv = sum(np.array([rv==ins[0] for ins in instance_set_split[i]]))  # number of instances with root value = rv
+            _cpr_.append(1.0*num_rv / len(instance_set_split[i]))
+
+        _cpr_lb_.append(_cpr_)
+
+    return _cpr_lb_
+
+
+def cnd_pr_lb_parent(V_new_node, instance_lb_split, instance_test, var_ranges):
+    """
+    Compute the conditional probability given <class> and <parent>, P(Xi | C, Xparent)
+    :param V_new_node:
+    :param instance_lb_split:
+    :param instance_test:
+    :param var_ranges:
+    :return:
+    """
+
+    # get the parent of this node
+    parent_var_idx = V_new_node.parents[1]
+    parent_value = instance_test[parent_var_idx]
+    # number of instances = (C, Xparent)
+    num_pv = sum(np.array([parent_value==ins[parent_var_idx] for ins in instance_lb_split]))
+
+    self_var_idx = V_new_node.var_idx
+    self_val = instance_test[self_var_idx]
+    # number of instances = (Xi, C, Xparent)
+    num_pv_sv = sum(np.array([parent_value==ins[parent_var_idx] and self_val==ins[self_var_idx] for ins in instance_lb_split]))
+
+    num_self_var_range = len(var_ranges[self_var_idx])  # number of possible values for current node
+    _cnd_pr_ = (num_pv_sv + 1.0) / (num_pv + num_self_var_range)  # laplace estimate: # P(Xi | C, Xparent)
+
+    return _cnd_pr_
+
+
+def instance_pred_tan(instance_test, _prior_pr_lb_, _cnd_pr_all_lb_, var_ranges, label_range, V_new, instance_set_split):
+    """
+    prediction of a single instance
+    :param instance_test:
+    :param _prior_pr_lb_:
+    :param _cnd_pr_all_lb_:
+    :param var_ranges:
+    :param label_range:
+    :param V_new:
+    :param instance_set_split:
+    :return:
+    """
+
+    # root value index
+    root_value = instance_test[0]  # the 1st node/variable is root
+    idx_rv = var_ranges[0].index(root_value)
+
+    # for each class/label, compute the posteriori probability
+    _post_pr_lb_ = []
+    for i in range(len(label_range)):
+        pri_pr_i = _prior_pr_lb_[i]  # P(C)
+        cpr_root = _cnd_pr_all_lb_[i][0][idx_rv]  # P(Xroot | C)
+
+        # for each node/variable, compute the conditional probabilty of Xi given root and class/label
+        # the 1st node is root, no need to compute, start with the 2nd
+        _cnd_pr_xi_given_parents_ = []
+        for j in range(1, len(V_new)):
+            # compute the conditional probability of Xj given its parents, P(Xi | C, Xparent)
+            _cnd_pr_xi_given_parents_.append(cnd_pr_lb_parent(V_new[j], instance_set_split[i], instance_test, var_ranges))
+
+        # compute the posterori probability of C given Xi
+        _post_pr_lb_i_ = pri_pr_i * cpr_root * np.product(np.array(_cnd_pr_xi_given_parents_))  # post probability for current class/label
+        _post_pr_lb_.append(_post_pr_lb_i_)
+
+    # posterori probability normalization
+    _post_pr_lb_norm_ = [_pr_ / sum(np.array(_post_pr_lb_)) for _pr_ in _post_pr_lb_]
+    test_pred_idx = np.argmax(np.array(_post_pr_lb_norm_))
+    test_pred = label_range[test_pred_idx]
+    test_max_post_pr = _post_pr_lb_norm_[test_pred_idx]
+
+    return test_pred, test_max_post_pr
+
+
+def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, label_range, V_new):
+    """
+    Prediction of a instance set with multiple instances
+    :param instance_data_trn:
+    :param instance_data_test:
+    :param var_ranges:
+    :param label_range:
+    :param V_new:
+    :return:
+    """
+
+    # get conditional probability for each variable given different class labels
+    _cnd_pr_ = cnd_pr_all_lb(instance_data_trn, var_ranges, label_range)
+
+    # get probability of each class label
+    _pr_lb_ = pr_var_range(instance_data_trn, label_range, -1)
+
+    instance_set_split = split_instance_on_label(instance_data_trn, label_range)
+
+    # prediction and the max posteriori probability of the entire test data set
+    testset_pred = []
+    testset_max_post_pr = []
+
+    for ins_test in instance_data_test:
+        ins_test_predict, ins_test_max_postPr = instance_pred_tan(ins_test, _pr_lb_, _cnd_pr_, var_ranges, label_range, V_new, instance_set_split)
+
+        testset_pred.append(ins_test_predict)
+        testset_max_post_pr.append(ins_test_max_postPr)
+
+    return testset_pred, testset_max_post_pr
