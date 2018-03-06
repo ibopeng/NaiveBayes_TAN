@@ -28,6 +28,7 @@ def read_cmdln_arg():
 def cpr_Xi_given_Ci(instanceset_Ci, var_range, var_idx):
     """
     P(Xi|Ci): Compute the probability of each possible variable value Xi given the class label Ci
+    Note the following function can also be used to compute prior probability as long as the input instanceset is the entire set
     :param instance_set:
     :param var_range:
     :param var_idx:
@@ -98,47 +99,48 @@ def cpr_X_given_C(instanceset, var_ranges, label_range):
 
     return _cpr_X_C
 
-def instance_predict_nb(instance_test, cnd_pr_all_lb, pr_lb, var_ranges, label_range):
+def instance_predict_nb(instance, _cpr_X_C, _pripr_C, var_ranges, label_range):
     """
     Predict the class of the test instance
-    :param test_instance: single test instance
-    :param cnd_pr_all_lb: [list] conditional probability for each variable given different class lables
+    :param instance: single test instance
+    :param _cpr_X_C: [list] conditional probability for each variable given different class lables
+    :param _pripr_C: prior probability of each class labels
     :return: the class of the test instance
     """
 
     # for current instance, loop over all variables to compute the conditional probability give different class labels
     # number of class labels
-    num_label = len(label_range)
+    num_class = len(label_range)
     num_var = len(var_ranges) - 1  # number of variables, the last variable is <class> which should be excluded
 
-    # posteriori probability for each label
-    post_pr_all_lb = []
+    # P(C|X): posteriori probability for each label
+    _pospr_C_X = []
     # loop over all subsets
-    for i in range(num_label):
-        cnd_pr_one_lb = cnd_pr_all_lb[i] # conditional probability of all variables given one label
-        cnd_pr_ins_all_var = [] # conditional probability of the instance value for all variables given one label
+    for i in range(num_class):
+        _cpr_X_Ci = _cpr_X_C[i] # P(X|Ci): conditional probability of all variables given one class label, Ci
+        _ins_cpr_X_Ci = [] # [P(Xi|Ci)]: [list], conditional probability of the instance value of each variable given one class label Ci
 
-        # loop over all variables
+        # loop over all variables for this instance
         for j in range(num_var):
             this_var_range = var_ranges[j] # range of this variables
-            _cnd_pr_var_ = cnd_pr_one_lb[j] # conditional probability for all values of this variable
+            _cpr_Xj_Ci = _cpr_X_Ci[j] # conditional probability for all values of this variable
             # get the probability of the instance value for this variable
-            _cnd_pr_ins_this_var_ = _cnd_pr_var_[this_var_range.index(instance_test[j])]
-            cnd_pr_ins_all_var.append(_cnd_pr_ins_this_var_)
+            _ins_cpr_Xj_Ci = _cpr_Xj_Ci[this_var_range.index(instance[j])]
+            _ins_cpr_X_Ci.append(_ins_cpr_Xj_Ci)
 
         # compute the posteriori probability of this test instance being classified as the ith label
-        # posteriori Pr = P(yi) * [P(a1|yi) * P(a2|yi)*... *P(an|yi)]
-        _post_pr_one_lb_ = pr_lb[i] * np.product(np.array(cnd_pr_ins_all_var))
-        post_pr_all_lb.append(_post_pr_one_lb_)
+        # posteriori Pr: P(Ci|X) = P(Ci) * (P(X1|Ci) * P(X2|Ci)*... *P(Xn|Ci))
+        _pospr_Ci_X = _pripr_C[i] * np.product(np.array(_ins_cpr_X_Ci))
+        _pospr_C_X.append(_pospr_Ci_X)
 
     # normalize the posteriori probability
-    post_pr_all_lb_norm = [_post_pr_one_lb_ / sum(np.array(post_pr_all_lb)) for _post_pr_one_lb_ in post_pr_all_lb]
+    _pospr_C_X_norm = [_pospr_Ci_X / sum(np.array(_pospr_C_X)) for _pospr_Ci_X in _pospr_C_X]
 
     # get the index of the max conditional probability
-    idx_max_post_pr = np.argmax(np.array(post_pr_all_lb_norm))
+    idx_max_pospr = np.argmax(np.array(_pospr_C_X_norm))
     # get the label corresponding to this idx
-    test_predict = label_range[idx_max_post_pr]
-    test_max_post_pr = post_pr_all_lb_norm[idx_max_post_pr]
+    test_predict = label_range[idx_max_pospr]
+    test_max_post_pr = _pospr_C_X_norm[idx_max_pospr]
 
     return test_predict, test_max_post_pr
 
@@ -146,21 +148,22 @@ def instance_predict_nb(instance_test, cnd_pr_all_lb, pr_lb, var_ranges, label_r
 def testset_predict(instance_data_trn, instance_data_test, var_ranges, label_range):
 
     # get conditional probability for each variable given different class labels
-    _cnd_pr_ = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
+    _cpr_X_C = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
 
     # get probability of each class label
-    _pr_lb_ = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
+    # note the following function can also be used to compute prior probability as long as the input instanceset is the entire set
+    _pripr_C = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
 
     # prediction and the max posteriori probability of the entire test data set
     testset_pred = []
-    testset_max_post_pr = []
+    testset_max_pospr = []
 
     for ins_test in instance_data_test:
-        ins_test_predict, ins_test_max_postPr = instance_predict_nb(ins_test, _cnd_pr_, _pr_lb_, var_ranges, label_range)
+        ins_test_predict, ins_test_max_pospr = instance_predict_nb(ins_test, _cpr_X_C, _pripr_C, var_ranges, label_range)
         testset_pred.append(ins_test_predict)
-        testset_max_post_pr.append(ins_test_max_postPr)
+        testset_max_pospr.append(ins_test_max_pospr)
 
-    return testset_pred, testset_max_post_pr
+    return testset_pred, testset_max_pospr
 
 
 def comp_num_correct_predict(instance_data_label, instance_data_prediction):
@@ -178,6 +181,10 @@ def comp_num_correct_predict(instance_data_label, instance_data_prediction):
     else:
         return 0
 
+
+"""
+TAN
+"""
 def range_two_vars(vidx1, vidx2, var_ranges):
     """
     Get the joint range of two variables
@@ -193,6 +200,7 @@ def range_two_vars(vidx1, vidx2, var_ranges):
     _range_ = [[vr1, vr2] for vr1 in var_range1 for vr2 in var_range2]
 
     return _range_
+
 
 def range_three_vars(vidx1, vidx2, vidx3, var_ranges):
     """
@@ -213,7 +221,7 @@ def range_three_vars(vidx1, vidx2, vidx3, var_ranges):
     return _range_
 
 
-def joint_pr_three_var(vidx0, vidx1, vidx2, instance_set, joint_range):
+def jpr_three_var(vidx0, vidx1, vidx2, instanceset, joint_range_three):
     """
     Joint probability of 3 variables
     :param vidx0:
@@ -224,21 +232,21 @@ def joint_pr_three_var(vidx0, vidx1, vidx2, instance_set, joint_range):
     :return:
     """
 
-    num_instance = len(instance_set)  # number of instances
-    num_jnt_var = len(joint_range)  # number of possible value for this joint range
+    num_instance = len(instanceset)  # number of instances
+    num_jnt_var = len(joint_range_three)  # number of possible value for this joint range
 
-    # probability of each possible variable value within the joint range
-    _pr_ = []
+    # joint probability of each possible variable value within the joint range
+    _jpr_3v = []
 
-    for var in joint_range:
+    for var in joint_range_three:
         # compute the number of instances with corresponding variables == var
-        num_instance_var = sum(np.array([ins[vidx0] == var[0] and ins[vidx1] == var[1] and ins[vidx2] == var[2] for ins in instance_set]))
-        _pr_.append((num_instance_var + 1.0) / (num_instance + num_jnt_var))
+        num_instance_var = sum(np.array([ins[vidx0] == var[0] and ins[vidx1] == var[1] and ins[vidx2] == var[2] for ins in instanceset]))
+        _jpr_3v.append((num_instance_var + 1.0) / (num_instance + num_jnt_var))
 
-    return _pr_
+    return _jpr_3v
 
 
-def joint_pr_two_var(vidx0, vidx1, instance_set, joint_range):
+def jpr_two_var(vidx0, vidx1, instanceset, joint_range_two):
     """
     Joint probability of two variables
     :param vidx0:
@@ -248,36 +256,36 @@ def joint_pr_two_var(vidx0, vidx1, instance_set, joint_range):
     :return:
     """
 
-    num_instance = len(instance_set)  # number of instances
-    num_jnt_var = len(joint_range)  # number of possible value for this joint range
+    num_instance = len(instanceset)  # number of instances
+    num_jnt_var = len(joint_range_two)  # number of possible value for this joint range
 
-    # probability of each possible variable value within the joint range
-    _pr_ = []
+    # joint probability of each possible variable value within the joint range
+    _jpr_2v = []
 
-    for var in joint_range:
+    for var in joint_range_two:
         # compute the number of instances with corresponding variables == var
-        num_instance_var = sum(np.array([ins[vidx0] == var[0] and ins[vidx1] == var[1] for ins in instance_set]))
-        _pr_.append((num_instance_var + 1.0) / (num_instance + num_jnt_var))
+        num_instance_var = sum(np.array([ins[vidx0] == var[0] and ins[vidx1] == var[1] for ins in instanceset]))
+        _jpr_2v.append((num_instance_var + 1.0) / (num_instance + num_jnt_var))
 
-    return _pr_
+    return _jpr_2v
 
 
-def mutual_info(pr_xi_xj_y, pr_xi_given_y, pr_xj_given_y, pr_xi_xj_given_y):
+def mutual_info(_jpr_X0iX1jCl, _cpr_X0i_Cl, _cpr_X1j_Cl, _cjpr_X0iX1j_Cl):
     """
     Compute mutual information between two nodes/variables
-    :param pr_xi_xj_y:
-    :param pr_xi_given_y:
-    :param pr_xj_given_y:
-    :param pr_xi_xj_given_y:
+    :param _jpr_X0iX1jCl: joint probability of (X0i, X1j, Cl)
+    :param _cpr_X0i_Cl: conditional probability of X0i given Cl, where 0 mean one variable, i means the ith value of this variable range
+    :param _cpr_X1j_Cl: conditional probability of X1j given Cl, where 1 mean the other variable, j means the jth value of this variable range
+    :param _cjpr_X0iX1j_Cl: conditional joint probability of (X0i, X1j) given Cl
     :return:
     """
 
-    _mut_info_ = pr_xi_xj_y * np.log2(pr_xi_xj_given_y / (pr_xi_given_y * pr_xj_given_y))
+    _mut_info_ = _jpr_X0iX1jCl * np.log2(_cjpr_X0iX1j_Cl / (_cpr_X0i_Cl * _cpr_X1j_Cl))
 
     return _mut_info_
 
 
-def edge_weight(instance_set, instance_set_split, _cnd_pr_, vidx0, vidx1, var_ranges, label_range):
+def edge_weight(instanceset, instanceset_split, _cpr_X_C, vidx0, vidx1, var_ranges, label_range):
 
     # set the mutual information between two same variables as -1.0
     if vidx0 == vidx1:
@@ -286,16 +294,17 @@ def edge_weight(instance_set, instance_set_split, _cnd_pr_, vidx0, vidx1, var_ra
     # weight of the edge between variable 0 and 1
     weight_v0_v1 = 0
 
-    # get the range of (xi, xj, y)
-    range_XXY = range_three_vars(vidx0, vidx1, -1, var_ranges)
+    # get the range of (X0, X1, C),
+    # note 0, 1 refer to two variables in var_ranges, not necessarily the 1st and 2nd variables
+    range_X0X1C = range_three_vars(vidx0, vidx1, -1, var_ranges)
     # compute the joint probability list of each P(xi, xj, y) corresponding to the joint range
-    _jnt_pr_XXY_ = joint_pr_three_var(vidx0, vidx1, -1, instance_set, range_XXY)
+    _jpr_X0X1C = jpr_three_var(vidx0, vidx1, -1, instanceset, range_X0X1C)
 
-    # get the range of (xi, xj)
-    range_XX = range_two_vars(vidx0, vidx1, var_ranges)
+    # get the range of (X0, X1)
+    range_X0X1 = range_two_vars(vidx0, vidx1, var_ranges)
 
-    num_label = len(label_range)  # number of labels
-    for l in range(num_label):
+    num_class = len(label_range)  # number of class labels
+    for l in range(num_class):
         # number of possible values for the [vidx_i]th variable
         num_var0 = len(var_ranges[vidx0])
 
@@ -304,28 +313,31 @@ def edge_weight(instance_set, instance_set_split, _cnd_pr_, vidx0, vidx1, var_ra
             num_var1 = len(var_ranges[vidx1])
 
             for j in range(num_var1):
-                # compute P(xi, xj, y), P(xi, xj|y), P(xi|y), P(xj|y)
-                # compute the joint probability for current (xi, xj, y), P(xi, xj, y)
-                _idx_ijy = range_XXY.index([var_ranges[vidx0][i], var_ranges[vidx1][j], var_ranges[-1][l]]) # index of current (xi, xj, y)
-                jnt_pr_ijy = _jnt_pr_XXY_[_idx_ijy]
+                # compute P(X0i, X1j, Cl), P(X0i, X1j|Cl), P(X0i|Cl), P(X1j|Cl)
+                # compute the joint probability for current (X0i, X1j, Cl), P(X0i, X1j, Cl)
+                # index of current (X0i, X1j, Cl) in the joint range
+                _idx_X0iX1jCl = range_X0X1C.index([var_ranges[vidx0][i], var_ranges[vidx1][j], var_ranges[-1][l]])
+                _jpr_X0iX1jCl = _jpr_X0X1C[_idx_X0iX1jCl]
 
-                # compute the conditional joint probability list of each (xi,xj|y) given the label y, P(xi, xj|y)
-                _cnd_jnt_pr_XX_ = joint_pr_two_var(vidx0, vidx1, instance_set_split[l], range_XX)
-                # comupte the conditional joint probability of current (xi,xj|y), P(xi, xj|y)
-                _idx_ij = range_XX.index([var_ranges[vidx0][i], var_ranges[vidx1][j]])  # index of current (xi, xj|y)
-                cnd_jnt_pr_ij = _cnd_jnt_pr_XX_[_idx_ij]
+                # conditional joint probability of all possible values in joint range: P(X0,X1|Cl), a list including cpr for each joint value
+                _cjpr_X0X1_Cl = jpr_two_var(vidx0, vidx1, instanceset_split[l], range_X0X1)
 
-                # Compute the conditional probability of xi given y, P(xi|y)
-                cnd_pr_xi = _cnd_pr_[l][vidx0][i]
-                cnd_pr_xj = _cnd_pr_[l][vidx1][j]
+                # index of current (X0i,X1j)
+                _idx_X0iX1j = range_X0X1.index([var_ranges[vidx0][i], var_ranges[vidx1][j]])
+                # conditional joint probability of current value (X0i,X1j|Cl), P(X0i,X1j|Cl)
+                _cjpr_X0iX1j_Cl = _cjpr_X0X1_Cl[_idx_X0iX1j]
+
+                # Compute the conditional probability of X0i and X1j given the class label Cl, P(X0i|Cl), P(X1j|Cl)
+                _cpr_X0i_Cl = _cpr_X_C[l][vidx0][i]
+                _cpr_X1j_Cl = _cpr_X_C[l][vidx1][j]
 
                 # compute mutual information
-                weight_v0_v1 += mutual_info(jnt_pr_ijy, cnd_pr_xi, cnd_pr_xj, cnd_jnt_pr_ij)
+                weight_v0_v1 += mutual_info(_jpr_X0iX1jCl, _cpr_X0i_Cl, _cpr_X1j_Cl, _cjpr_X0iX1j_Cl)
 
     return weight_v0_v1
 
 
-def edge_weight_graph(instance_set, var_ranges, label_range):
+def edge_weight_graph(instanceset, var_ranges, label_range):
     """
     Compute mutual information / edge weight graph between each pair of variables
     :param instance_set:
@@ -334,8 +346,9 @@ def edge_weight_graph(instance_set, var_ranges, label_range):
     :return:
     """
 
-    instance_set_split = split_instanceset_on_label(instance_set, label_range)
-    _cnd_pr_ = [cpr_X_given_Ci(isp, var_ranges) for isp in instance_set_split]
+    instanceset_split = split_instanceset_on_label(instanceset, label_range)
+    _cpr_X_C = [cpr_X_given_Ci(isp, var_ranges) for isp in instanceset_split]
+
 
     edge_weight_graph = []
 
@@ -344,7 +357,7 @@ def edge_weight_graph(instance_set, var_ranges, label_range):
         for j in range(0, i):
             _edge_weight_i_.append(edge_weight_graph[j][i])  # the edge weight graph is symmetric [i,j] = [j,i]
         for j in range(i, len(var_ranges)-1):
-            _edge_weight_i_.append(edge_weight(instance_set, instance_set_split, _cnd_pr_, i, j, var_ranges, label_range))
+            _edge_weight_i_.append(edge_weight(instanceset, instanceset_split, _cpr_X_C, i, j, var_ranges, label_range))
         edge_weight_graph.append(np.array(_edge_weight_i_))
 
     return edge_weight_graph
@@ -416,9 +429,10 @@ def prim_mst(edge_weight_graph):
 
     return V_new
 
-def cnd_pr_root(var_ranges, label_range, instance_set_split):
+
+def cpr_Xroot_Ci(var_ranges, label_range, instance_set_split):
     """
-    Compute the conditional probability of root given each label
+    P(Xroot|Ci)Compute the conditional probability of root given each label
     :param var_ranges:
     :param label_range:
     :param instance_set_split:
@@ -439,9 +453,10 @@ def cnd_pr_root(var_ranges, label_range, instance_set_split):
     return _cpr_lb_
 
 
-def cnd_pr_lb_parent(V_new_node, instance_lb_split, instance_test, var_ranges):
+def cpr_Xi_given_Cl_Xparent(V_new_node, instanceset_split_Cl, instance_test, var_ranges):
     """
-    Compute the conditional probability given <class> and <parent>, P(Xi | C, Xparent)
+    P(Xi | Cl, Xparent): conditional probability of Xi given <class> and <parent>
+    Xi refers to the input node: V_new_node
     :param V_new_node:
     :param instance_lb_split:
     :param instance_test:
@@ -449,21 +464,21 @@ def cnd_pr_lb_parent(V_new_node, instance_lb_split, instance_test, var_ranges):
     :return:
     """
 
-    # get the parent of this node
-    parent_var_idx = V_new_node.parents[1]
-    parent_value = instance_test[parent_var_idx]
+    # get the Xparent of this node
+    Xparent_var_idx = V_new_node.parents[1]
+    parent_value = instance_test[Xparent_var_idx]
     # number of instances = (C, Xparent)
-    num_pv = sum(np.array([parent_value==ins[parent_var_idx] for ins in instance_lb_split]))
+    num_CiXparent = sum(np.array([parent_value==ins[Xparent_var_idx] for ins in instanceset_split_Cl]))
 
-    self_var_idx = V_new_node.var_idx
-    self_val = instance_test[self_var_idx]
+    Xi_var_idx = V_new_node.var_idx
+    Xi_val = instance_test[Xi_var_idx]
     # number of instances = (Xi, C, Xparent)
-    num_pv_sv = sum(np.array([parent_value==ins[parent_var_idx] and self_val==ins[self_var_idx] for ins in instance_lb_split]))
+    num_XiClXparent = sum(np.array([parent_value==ins[Xparent_var_idx] and Xi_val==ins[Xi_var_idx] for ins in instanceset_split_Cl]))
 
-    num_self_var_range = len(var_ranges[self_var_idx])  # number of possible values for current node
-    _cnd_pr_ = (num_pv_sv + 1.0) / (num_pv + num_self_var_range)  # laplace estimate: # P(Xi | C, Xparent)
+    num_Xi_var_range = len(var_ranges[Xi_var_idx])  # number of possible values for current node
+    _cpr_Xi_ClXparent = (num_XiClXparent + 1.0) / (num_CiXparent + num_Xi_var_range)  # laplace estimate: # P(Xi | Cl, Xparent)
 
-    return _cnd_pr_
+    return _cpr_Xi_ClXparent
 
 
 def instance_pred_tan(instance_test, _prior_pr_lb_, _cnd_pr_all_lb_, var_ranges, label_range, V_new, instance_set_split):
@@ -494,7 +509,7 @@ def instance_pred_tan(instance_test, _prior_pr_lb_, _cnd_pr_all_lb_, var_ranges,
         _cnd_pr_xi_given_parents_ = []
         for j in range(1, len(V_new)):
             # compute the conditional probability of Xj given its parents, P(Xi | C, Xparent)
-            _cnd_pr_xi_given_parents_.append(cnd_pr_lb_parent(V_new[j], instance_set_split[i], instance_test, var_ranges))
+            _cnd_pr_xi_given_parents_.append(cpr_Xi_given_Cl_Xparent(V_new[j], instance_set_split[i], instance_test, var_ranges))
 
         # compute the posterori probability of C given Xi
         _post_pr_lb_i_ = pri_pr_i * cpr_root * np.product(np.array(_cnd_pr_xi_given_parents_))  # post probability for current class/label
@@ -524,7 +539,7 @@ def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, la
     _cnd_pr_ = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
 
     # get probability of each class label
-    _pr_lb_ = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
+    _pr_C = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
 
     instance_set_split = split_instanceset_on_label(instance_data_trn, label_range)
 
@@ -533,7 +548,7 @@ def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, la
     testset_max_post_pr = []
 
     for ins_test in instance_data_test:
-        ins_test_predict, ins_test_max_postPr = instance_pred_tan(ins_test, _pr_lb_, _cnd_pr_, var_ranges, label_range, V_new, instance_set_split)
+        ins_test_predict, ins_test_max_postPr = instance_pred_tan(ins_test, _pr_C, _cnd_pr_, var_ranges, label_range, V_new, instance_set_split)
 
         testset_pred.append(ins_test_predict)
         testset_max_post_pr.append(ins_test_max_postPr)
