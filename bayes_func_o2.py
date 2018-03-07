@@ -455,7 +455,7 @@ def cpr_Xroot_Ci(var_ranges, label_range, instance_set_split):
 
 def cpr_Xi_given_Cl_Xparent(V_new_node, instanceset_split_Cl, instance_test, var_ranges):
     """
-    P(Xi | Cl, Xparent): conditional probability of Xi given <class> and <parent>
+    P(Xi | Cl, Xparent): conditional probability of Xi given Cl and Xparent
     Xi refers to the input node: V_new_node
     :param V_new_node:
     :param instance_lb_split:
@@ -481,65 +481,7 @@ def cpr_Xi_given_Cl_Xparent(V_new_node, instanceset_split_Cl, instance_test, var
     return _cpr_Xi_ClXparent
 
 
-def cpr_X_given_C_Xparent(instanceset, V_new, var_ranges):
-
-    _cpr_X_CXp = []  # conditional joint probability P(X|C, Xparent)
-    # loop over V_new
-    for i in range(1, len(V_new)):
-        Xi_var_idx = V_new[i].var_idx  # variable index of Xi
-        Xp_var_idx = V_new[i].parents[1]  # variable index of the parent of Xi
-        range_Xi = var_ranges[Xi_var_idx]
-
-        # joint range of three variables [Xi, class, Xparent]
-        range_Xi_C_Xp = range_three_vars(Xi_var_idx, -1, Xp_var_idx, var_ranges)
-
-        # joint range of [class, Xparent]
-        range_C_Xp = range_two_vars(-1, Xp_var_idx, var_ranges)
-
-        _cjpr_Xi_CXp = []  # conditional joint probability  P(Xi|C,Xparent)
-        for rcxp in range_C_Xp:
-            # number of instances corresponding to (C, Xparent)
-            _num_ins_CXparent = sum(np.array([ins[-1] == rcxp[0] and ins[Xp_var_idx] == rcxp[1] for ins in instanceset]))
-
-            _cjpr_Xi_CXpj = []  # P(Xi|(C,Xp)j)
-            for rxi in range_Xi:
-                # number of instances corresponding to (Xi, C, Xparent)
-                _num_ins_Xi_C_Xp = sum(np.array([ins[Xi_var_idx] == rxi and ins[-1] == rcxp[0] and ins[Xp_var_idx] == rcxp[1] for ins in instanceset]))
-                _cjpr_Xi_CXpj.append((_num_ins_Xi_C_Xp + 1.0) / (_num_ins_CXparent + len(range_Xi)))
-
-            _cjpr_Xi_CXp.append(_cjpr_Xi_CXpj)
-
-        _cpr_X_CXp.append(_cjpr_Xi_CXp)  # add each node Xi
-
-    return _cpr_X_CXp
-
-
-def ins_cpr_Xi_given_Cl_Xparent(_cpr_X_CXp, V_new, vn_idx, C_idx, instance_test, var_ranges, label_range):
-
-    i = C_idx  # index of class/label in label_range
-    j = vn_idx  # index of node in V_new
-
-    Xj_var_idx = V_new[j].var_idx
-    Xp_var_idx = V_new[j].parents[1]
-
-    range_CXp = range_two_vars(-1, Xp_var_idx, var_ranges)  # joint range of [class, Xparent]
-    range_Xj = var_ranges[Xj_var_idx]  # node self range
-
-    Xj_val = instance_test[Xj_var_idx]  # node self value
-    Ci_val = label_range[i]  # possible class value
-    Xp_val = instance_test[Xp_var_idx]  # parent value
-
-    idx_CiXp = range_CXp.index([Ci_val, Xp_val])  # index within joint range [class, Xparent]
-    idx_Xj = range_Xj.index(Xj_val)  # index within self range
-
-    # IMPORTANT: _cpr_X_CXp does not include the root node, so the length of _cpr_X_CXp is len(V_new) - 1
-    # in that case, the index of jth node in _cpr_X_CXp should be [j-1]
-    _cpr_Xj_CiXp = _cpr_X_CXp[j - 1][idx_CiXp][idx_Xj]
-
-    return _cpr_Xj_CiXp
-
-
-def instance_pred_tan(instance_test, _prior_pr_C, _cpr_X_C, _cpr_X_CXp, var_ranges, label_range, V_new):
+def instance_pred_tan(instance_test, _prior_pr_lb_, _cpr_X_C, var_ranges, label_range, V_new, instance_set_split):
     """
     prediction of a single instance
     :param instance_test:
@@ -559,7 +501,7 @@ def instance_pred_tan(instance_test, _prior_pr_C, _cpr_X_C, _cpr_X_CXp, var_rang
     # for each class/label, compute the posteriori probability
     _post_pr_C = []
     for i in range(len(label_range)):
-        pri_pr_Ci = _prior_pr_C[i]  # prior probability P(C)
+        pri_pr_Ci = _prior_pr_lb_[i]  # prior probability P(C)
         cpr_Xroot_Ci = _cpr_X_C[i][0][idx_rv]  # P(Xroot | C)
 
         # for each node/variable, compute the conditional probabilty of Xi given root and class/label
@@ -567,12 +509,11 @@ def instance_pred_tan(instance_test, _prior_pr_C, _cpr_X_C, _cpr_X_CXp, var_rang
         _cpr_X_CiXp = []  # P(Xi|Ci,Xp)
         for j in range(1, len(V_new)):
             # compute the conditional probability of Xj given its parents, P(Xi | C, Xparent)
-            _cpr_Xj_CiXp_ = ins_cpr_Xi_given_Cl_Xparent(_cpr_X_CXp, V_new, j, i, instance_test, var_ranges, label_range)
-            _cpr_X_CiXp.append(_cpr_Xj_CiXp_)
+            _cpr_X_CiXp.append(cpr_Xi_given_Cl_Xparent(V_new[j], instance_set_split[i], instance_test, var_ranges))
 
         # compute the posterori probability of C given Xi
-        _post_pr_Ci_ = pri_pr_Ci * cpr_Xroot_Ci * np.product(np.array(_cpr_X_CiXp))  # post probability for current class/label
-        _post_pr_C.append(_post_pr_Ci_)
+        _post_pr_Ci = pri_pr_Ci * cpr_Xroot_Ci * np.product(np.array(_cpr_X_CiXp))  # post probability for current class/label
+        _post_pr_C.append(_post_pr_Ci)
 
     # posterori probability normalization
     _post_pr_C_norm = [_ppc_ / sum(np.array(_post_pr_C)) for _ppc_ in _post_pr_C]
@@ -594,22 +535,21 @@ def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, la
     :return:
     """
 
-    # get conditional probability for each variable given different class labels
+    # get conditional probability for each variable given different class labels P(X|C)
     _cpr_X_C = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
 
-    # get probability of each class label
+    # get prior probability of each class label, P(C)
     # Note the this function can also be used to compute prior probability as long as the input instanceset is the entire set
     _pri_pr_C = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
 
-    # P(Xi | C, Xparent)
-    _cpr_X_CXp = cpr_X_given_C_Xparent(instance_data_trn, V_new, var_ranges)
+    instanceset_split = split_instanceset_on_label(instance_data_trn, label_range)
 
     # prediction and the max posteriori probability of the entire test data set
     testset_pred = []
     testset_max_post_pr = []
 
     for ins_test in instance_data_test:
-        ins_test_predict, ins_test_max_postPr = instance_pred_tan(ins_test, _pri_pr_C, _cpr_X_C, _cpr_X_CXp, var_ranges, label_range, V_new)
+        ins_test_predict, ins_test_max_postPr = instance_pred_tan(ins_test, _pri_pr_C, _cpr_X_C, var_ranges, label_range, V_new, instanceset_split)
 
         testset_pred.append(ins_test_predict)
         testset_max_post_pr.append(ins_test_max_postPr)

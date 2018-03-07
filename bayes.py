@@ -8,16 +8,16 @@ Main file to run Naive Bayes or TAN algorithm
 """
 
 
-import bayes_func_v_error as bf
+import bayes_func as bf
 import scipy.io.arff as af
 
 """
 Step 1: read parameters from command line
 """
-#filename_trn, filename_test, n_t = bf.read_cmdln_arg()
-filename_trn = 'lymph_train.arff'
-filename_test = 'lymph_test.arff'
-n_t = 't'
+filename_trn, filename_test, n_t = bf.read_cmdln_arg()
+#filename_trn = 'lymph_train.arff'
+#filename_test = 'lymph_test.arff'
+#n_t = 't'
 """
 Step 2: load training and testing data
 """
