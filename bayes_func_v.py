@@ -539,6 +539,7 @@ def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, la
     _cpr_X_C = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
 
     # get prior probability of each class label, P(C)
+    # Note the this function can also be used to compute prior probability as long as the input instanceset is the entire set
     _pri_pr_C = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
 
     instanceset_split = split_instanceset_on_label(instance_data_trn, label_range)
