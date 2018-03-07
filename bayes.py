@@ -17,7 +17,7 @@ Step 1: read parameters from command line
 #filename_trn, filename_test, n_t = bf.read_cmdln_arg()
 filename_trn = 'lymph_train.arff'
 filename_test = 'lymph_test.arff'
-n_t = 't'
+n_t = 'n'
 """
 Step 2: load training and testing data
 """
