@@ -17,7 +17,8 @@ Step 1: read parameters from command line
 filename_trn, filename_test, n_t = bf.read_cmdln_arg()
 #filename_trn = 'lymph_train.arff'
 #filename_test = 'lymph_test.arff'
-#n_t = 't'
+#n_t = 'n'
+
 """
 Step 2: load training and testing data
 """
@@ -29,6 +30,8 @@ test_labels = [ins[-1] for ins in instance_data_test]
 # relative parameters
 var_ranges = [meta_data[name][1] for name in meta_data.names()]
 var_names = meta_data.names()
+var_name_ranges = {var_names[i]: var_ranges[i] for i in range(len(var_names))}
+
 label_range = var_ranges[-1]
 
 if None in var_ranges:
@@ -64,7 +67,7 @@ if n_t == 't':  # TAN
     print('')
 
 elif n_t == 'n':  # Naive Bayes
-    test_pred, test_postPr = bf.testset_predict(instance_data_trn, instance_data_test, var_ranges, label_range)
+    test_pred, test_postPr = bf.testset_predict_nb(instance_data_trn, instance_data_test, var_ranges, label_range)
     num_correct_pred = bf.comp_num_correct_predict(test_labels, test_pred)
 
     # print out the results

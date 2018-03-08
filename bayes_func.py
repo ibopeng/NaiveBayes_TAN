@@ -25,6 +25,10 @@ def read_cmdln_arg():
     return filename_trn, filename_test, n_t
 
 
+"""
+Naive Bayes
+"""
+
 def cpr_Xi_given_Ci(instanceset_Ci, var_range, var_idx):
     """
     P(Xi|Ci): Compute the probability of each possible variable value Xi given the class label Ci
@@ -145,7 +149,7 @@ def instance_predict_nb(instance, _cpr_X_C, _pripr_C, var_ranges, label_range):
     return test_predict, test_max_post_pr
 
 
-def testset_predict(instance_data_trn, instance_data_test, var_ranges, label_range):
+def testset_predict_nb(instance_data_trn, instance_data_test, var_ranges, label_range):
 
     # get conditional probability for each variable given different class labels
     _cpr_X_C = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
