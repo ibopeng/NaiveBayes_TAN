@@ -30,7 +30,6 @@ test_labels = [ins[-1] for ins in instance_data_test]
 # relative parameters
 var_ranges = [meta_data[name][1] for name in meta_data.names()]
 var_names = meta_data.names()
-var_name_ranges = {var_names[i]: var_ranges[i] for i in range(len(var_names))}
 
 label_range = var_ranges[-1]
 
