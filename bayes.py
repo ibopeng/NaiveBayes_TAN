@@ -41,12 +41,8 @@ if None in var_ranges:
 Step 3: Training and Tesing using Naive Bayes or TAN
 """
 if n_t == 't':  # TAN
-    # generate the edge weight graph
-    weight_graph = bf.edge_weight_graph(instance_data_trn, var_ranges, label_range)
-    # compute the new vertex list
-    V_new = bf.prim_mst(weight_graph)
     # test set prediction
-    test_pred, test_postPr = bf.testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, label_range, V_new)
+    test_pred, test_postPr, V_new = bf.testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, label_range)
     # number of correct prediction
     num_correct_pred = bf.comp_num_correct_predict(test_labels, test_pred)
 
@@ -87,4 +83,4 @@ for i in range(len(test_pred)):
 print('')
 
 # the 3rd part, number of correct prediction
-print(str(num_correct_pred) + '\n')
+print(str(num_correct_pred))

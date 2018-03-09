@@ -149,20 +149,20 @@ def instance_predict_nb(instance, _cpr_X_C, _pripr_C, var_ranges, label_range):
     return test_predict, test_max_post_pr
 
 
-def testset_predict_nb(instance_data_trn, instance_data_test, var_ranges, label_range):
+def testset_predict_nb(instanceset_trn, instanceset_test, var_ranges, label_range):
 
     # get conditional probability for each variable given different class labels
-    _cpr_X_C = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
+    _cpr_X_C = cpr_X_given_C(instanceset_trn, var_ranges, label_range)
 
     # get probability of each class label
     # note the following function can also be used to compute prior probability as long as the input instanceset is the entire set
-    _pripr_C = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
+    _pripr_C = cpr_Xi_given_Ci(instanceset_trn, label_range, -1)
 
     # prediction and the max posteriori probability of the entire test data set
     testset_pred = []
     testset_max_pospr = []
 
-    for ins_test in instance_data_test:
+    for ins_test in instanceset_test:
         ins_test_predict, ins_test_max_pospr = instance_predict_nb(ins_test, _cpr_X_C, _pripr_C, var_ranges, label_range)
         testset_pred.append(ins_test_predict)
         testset_max_pospr.append(ins_test_max_pospr)
@@ -587,7 +587,7 @@ def instance_pred_tan(instance_test, _prior_pr_C, _cpr_X_C, _cpr_X_CXp, var_rang
     return test_pred, test_max_post_pr
 
 
-def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, label_range, V_new):
+def testset_prediction_tan(instanceset_trn, instanceset_test, var_ranges, label_range):
     """
     Prediction of a instance set with multiple instances
     :param instance_data_trn:
@@ -598,24 +598,30 @@ def testset_prediction_tan(instance_data_trn, instance_data_test, var_ranges, la
     :return:
     """
 
+    # generate the edge weight graph
+    weight_graph = edge_weight_graph(instanceset_trn, var_ranges, label_range)
+
+    # compute the new vertex list
+    V_new = prim_mst(weight_graph)
+
     # get conditional probability for each variable given different class labels
-    _cpr_X_C = cpr_X_given_C(instance_data_trn, var_ranges, label_range)
+    _cpr_X_C = cpr_X_given_C(instanceset_trn, var_ranges, label_range)
 
     # get probability of each class label
     # Note the this function can also be used to compute prior probability as long as the input instanceset is the entire set
-    _pri_pr_C = cpr_Xi_given_Ci(instance_data_trn, label_range, -1)
+    _pri_pr_C = cpr_Xi_given_Ci(instanceset_trn, label_range, -1)
 
     # P(Xi | C, Xparent)
-    _cpr_X_CXp = cpr_X_given_C_Xparent(instance_data_trn, V_new, var_ranges)
+    _cpr_X_CXp = cpr_X_given_C_Xparent(instanceset_trn, V_new, var_ranges)
 
     # prediction and the max posteriori probability of the entire test data set
     testset_pred = []
     testset_max_post_pr = []
 
-    for ins_test in instance_data_test:
+    for ins_test in instanceset_test:
         ins_test_predict, ins_test_max_postPr = instance_pred_tan(ins_test, _pri_pr_C, _cpr_X_C, _cpr_X_CXp, var_ranges, label_range, V_new)
 
         testset_pred.append(ins_test_predict)
         testset_max_post_pr.append(ins_test_max_postPr)
 
-    return testset_pred, testset_max_post_pr
+    return testset_pred, testset_max_post_pr, V_new

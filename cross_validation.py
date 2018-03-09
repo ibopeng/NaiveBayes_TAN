@@ -58,7 +58,7 @@ for i in range(num_fold):
             instanceset_trn.append(instanceset_cv[j])
     # Predict and compute accuracy
     # Naive Bayes
-    pred_nb, _ = bf.testset_predict_nb(instanceset_trn, instanceset_val, var_ranges, label_range)
+    pred_nb, _= bf.testset_predict_nb(instanceset_trn, instanceset_val, var_ranges, label_range)
 
     num_correct_pred_nb = bf.comp_num_correct_predict(val_labels, pred_nb)
     acc_nb.append(1.0 * num_correct_pred_nb / len(fold_idxs[i]))
@@ -69,7 +69,7 @@ for i in range(num_fold):
     # compute the new vertex list
     V_new = bf.prim_mst(weight_graph)
     # test set prediction
-    pred_tan, _ = bf.testset_prediction_tan(instanceset_trn, instanceset_val, var_ranges, label_range, V_new)
+    pred_tan, _, _ = bf.testset_prediction_tan(instanceset_trn, instanceset_val, var_ranges, label_range)
     # number of correct prediction
     num_correct_pred_tan = bf.comp_num_correct_predict(val_labels, pred_tan)
     acc_tan.append(1.0 * num_correct_pred_tan / len(fold_idxs[i]))
@@ -79,18 +79,32 @@ for i in range(num_fold):
 
     print("Fold {0}".format(i+1))
 
-"""1. Sample Mean"""
+# save accuracy to file
 acc_delta = np.array(acc_delta)
-sample_mean = np.mean(acc_delta)
-print('Sample means = ' + str(sample_mean))
+acc_nb = np.array(acc_nb)
+acc_tan = np.array(acc_tan)
+np.savetxt('acc_delta.txt', acc_delta)
+np.savetxt('acc_nb.txt', acc_nb)
+np.savetxt('acc_tan.txt', acc_tan)
+
+"""1. Sample Mean"""
+sm = 0
+for ad in acc_delta:
+    sm += ad
+sample_mean = sm / num_fold
+print('Sample mean = {0:.12f}'.format(sample_mean))
 
 """2. t statistic"""
-# freedom: n-1
-sample_variance = np.var(acc_delta, ddof=1)
-# Null hypothesis is: sample_mean = 0, i.e., no accuracy difference between TAN and NB
-t = (sample_mean - 0) / np.sqrt(sample_variance / num_fold)
-print('t statistic = ' + str(t))
+dof = num_fold - 1  # degree of freedom: n-1
 
-t_tatistic, p_value = stats.ttest_1samp(acc_delta, 0.0)
-print(t_tatistic)
-print(p_value)
+acc_delta_mean_removal = [ad - sample_mean for ad in acc_delta]
+sv = 0
+for admr in acc_delta_mean_removal:
+    sv += admr * admr
+sample_variance = sv / dof
+
+# Null hypothesis is: sample_mean = 0, i.e., no accuracy difference between TAN and NB
+mu0 = 0.0
+t = (sample_mean - mu0) / np.sqrt(sample_variance / num_fold)
+print('t statistic = {0:.12f}'.format(t))
+print('Degree of freedom = {0}'.format(dof))
