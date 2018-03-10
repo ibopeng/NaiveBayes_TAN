@@ -83,9 +83,9 @@ for i in range(num_fold):
 acc_delta = np.array(acc_delta)
 acc_nb = np.array(acc_nb)
 acc_tan = np.array(acc_tan)
-np.savetxt('acc_delta.txt', acc_delta)
-np.savetxt('acc_nb.txt', acc_nb)
-np.savetxt('acc_tan.txt', acc_tan)
+np.savetxt('acc_delta.txt', acc_delta, fmt='%1.12f')
+np.savetxt('acc_nb.txt', acc_nb, fmt='%1.12f')
+np.savetxt('acc_tan.txt', acc_tan, fmt='%1.12f')
 
 """1. Sample Mean"""
 sm = 0

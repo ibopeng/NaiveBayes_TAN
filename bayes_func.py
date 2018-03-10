@@ -9,7 +9,6 @@ Functions to implemetn Naive Bayes and TAN
 
 
 import numpy as np
-import scipy as sp
 import sys
 import TAN_node as tn
 
@@ -109,6 +108,8 @@ def instance_predict_nb(instance, _cpr_X_C, _pripr_C, var_ranges, label_range):
     :param instance: single test instance
     :param _cpr_X_C: [list] conditional probability for each variable given different class lables
     :param _pripr_C: prior probability of each class labels
+    :param var_ranges:
+    :param label_range:
     :return: the class of the test instance
     """
 
@@ -150,6 +151,14 @@ def instance_predict_nb(instance, _cpr_X_C, _pripr_C, var_ranges, label_range):
 
 
 def testset_predict_nb(instanceset_trn, instanceset_test, var_ranges, label_range):
+    """
+    test set prediction by Naive Bayes
+    :param instanceset_trn:
+    :param instanceset_test:
+    :param var_ranges:
+    :param label_range:
+    :return:
+    """
 
     # get conditional probability for each variable given different class labels
     _cpr_X_C = cpr_X_given_C(instanceset_trn, var_ranges, label_range)
@@ -231,8 +240,8 @@ def jpr_three_var(vidx0, vidx1, vidx2, instanceset, joint_range_three):
     :param vidx0:
     :param vidx1:
     :param vidx2:
-    :param instance_set:
-    :param joint_range:
+    :param instanceset:
+    :param joint_range_three:
     :return:
     """
 
@@ -255,8 +264,8 @@ def jpr_two_var(vidx0, vidx1, instanceset, joint_range_two):
     Joint probability of two variables
     :param vidx0:
     :param vidx1:
-    :param instance_set:
-    :param joint_range:
+    :param instanceset:
+    :param joint_range_two:
     :return:
     """
 
@@ -276,7 +285,7 @@ def jpr_two_var(vidx0, vidx1, instanceset, joint_range_two):
 
 def mutual_info(_jpr_X0iX1jCl, _cpr_X0i_Cl, _cpr_X1j_Cl, _cjpr_X0iX1j_Cl):
     """
-    Compute mutual information between two nodes/variables
+    Compute mutual information between two nodes/variables with specific variable values (X0i, X1j, Cl)
     :param _jpr_X0iX1jCl: joint probability of (X0i, X1j, Cl)
     :param _cpr_X0i_Cl: conditional probability of X0i given Cl, where 0 mean one variable, i means the ith value of this variable range
     :param _cpr_X1j_Cl: conditional probability of X1j given Cl, where 1 mean the other variable, j means the jth value of this variable range
@@ -290,6 +299,17 @@ def mutual_info(_jpr_X0iX1jCl, _cpr_X0i_Cl, _cpr_X1j_Cl, _cjpr_X0iX1j_Cl):
 
 
 def edge_weight(instanceset, instanceset_split, _cpr_X_C, vidx0, vidx1, var_ranges, label_range):
+    """
+    Compute the edge weight between two nodes/variables
+    :param instanceset:
+    :param instanceset_split:
+    :param _cpr_X_C:
+    :param vidx0:
+    :param vidx1:
+    :param var_ranges:
+    :param label_range:
+    :return:
+    """
 
     # set the mutual information between two same variables as -1.0
     if vidx0 == vidx1:
@@ -371,7 +391,6 @@ def prim_mst(edge_weight_graph):
     """
     fing the Maximum Spanning Tree via Prim's algorithm
     :param edge_weight_graph:
-    :param var_ranges:
     :return:
     """
 
@@ -486,6 +505,13 @@ def cpr_Xi_given_Cl_Xparent(V_new_node, instanceset_split_Cl, instance_test, var
 
 
 def cpr_X_given_C_Xparent(instanceset, V_new, var_ranges):
+    """
+    Conditional joint probability P(X|C, Xparent)
+    :param instanceset:
+    :param V_new:
+    :param var_ranges:
+    :return:
+    """
 
     _cpr_X_CXp = []  # conditional joint probability P(X|C, Xparent)
     # loop over V_new
@@ -519,6 +545,17 @@ def cpr_X_given_C_Xparent(instanceset, V_new, var_ranges):
 
 
 def ins_cpr_Xi_given_Cl_Xparent(_cpr_X_CXp, V_new, vn_idx, C_idx, instance_test, var_ranges, label_range):
+    """
+    Compute the conditional joint probability of current test instance for each node P(Xi|Cl, Xparent)
+    :param _cpr_X_CXp:
+    :param V_new:
+    :param vn_idx:
+    :param C_idx:
+    :param instance_test:
+    :param var_ranges:
+    :param label_range:
+    :return:
+    """
 
     i = C_idx  # index of class/label in label_range
     j = vn_idx  # index of node in V_new
@@ -545,14 +582,14 @@ def ins_cpr_Xi_given_Cl_Xparent(_cpr_X_CXp, V_new, vn_idx, C_idx, instance_test,
 
 def instance_pred_tan(instance_test, _prior_pr_C, _cpr_X_C, _cpr_X_CXp, var_ranges, label_range, V_new):
     """
-    prediction of a single instance
+    prediction of a single instance P(C|X1, X2, ... Xn)
     :param instance_test:
-    :param _prior_pr_lb_:
-    :param _cnd_pr_all_lb_:
+    :param _prior_pr_C:
+    :param _cpr_X_C:
+    :param _cpr_X_CXp:
     :param var_ranges:
     :param label_range:
     :param V_new:
-    :param instance_set_split:
     :return:
     """
 
@@ -594,7 +631,6 @@ def testset_prediction_tan(instanceset_trn, instanceset_test, var_ranges, label_
     :param instance_data_test:
     :param var_ranges:
     :param label_range:
-    :param V_new:
     :return:
     """
 
