@@ -1,4 +1,5 @@
 # NaiveBayes_TAN
+UW-Madison CS760 Homework
 
 Implement two algorithms:
 (1) naive bayes
